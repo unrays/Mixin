@@ -18,71 +18,64 @@ namespace engine3 {
     struct Empty {
         void update() { std::cout << "[Empty] Updating last...\n"; }
     };
-    
-    template<typename Derived>
+
+    template<typename Implementation>
     struct ISystem {
+        friend Implementation;
+
+    public:
         void info() {
             std::cout << "MOCK INFO SYSTEM\n";
         }
-    
+
         //juste des methodes utilitaires genre info()
     };
-    
+
     template<typename Implementation>
     struct IUpdatable {
+        friend Implementation;
+
+    public:
         void update() {
             static_cast<Implementation*>(this)->on_update();
         }
     };
-    
+
+    // possiblement faire des ensembles ou packs
     template<typename Next> // next est useless
-    struct PositionSystem
+    struct PositionSystem // pourrait faire quelque chose d'injectable
          : public ISystem<PositionSystem<Next>>,
            public IUpdatable<PositionSystem<Next>>
     {     
-           template<typename Implementation>
-              friend struct ISystem;
-           template<typename Implementation>
-              friend struct IUpdatable;
-    
+
     private:
         void on_update() {
             std::cout << "[PositionSystem] Updating...\n";
         }
     };
-    
+
     template<typename Next>
     struct VelocitySystem
         : ISystem<VelocitySystem<Next>>,
           IUpdatable<VelocitySystem<Next>>
     {
-          template<typename Implementation>
-             friend struct ISystem;
-          template<typename Implementation>
-             friend struct IUpdatable;
-    
     private:
         void on_update() {
             std::cout << "[VelocitySystem] Updating...\n";
         }
     };
-    
+
     template<typename Next>
     struct RenderingSystem
          : ISystem<RenderingSystem<Next>>,
            IUpdatable<RenderingSystem<Next>>
     {
-           template<typename Implementation>
-              friend struct ISystem;
-           template<typename Implementation>
-              friend struct IUpdatable;
-    
     private:
         void on_update() {
             std::cout << "[RenderingSystem] Updating...\n";
         }
     };
-    
+
     //potentiellement mettre dans Engine
     template<template<typename> class... Layers>
     struct LayeredPipeline
@@ -91,13 +84,13 @@ namespace engine3 {
         void update_all() {
             (static_cast<Layers<LayeredPipeline>*>(this)->update(), ...);
         }
-    
+
     private:
-    
+
     };
     template<template<typename> class... Layers>
     using Pipeline = LayeredPipeline<Layers...>;
-    }
+}
 ```
 
 ```cpp
