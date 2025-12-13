@@ -44,23 +44,6 @@ namespace ecs {
 
     template<typename Derived>
     struct CoreInvokerMixin {
-        //genre faire des lambdas injectables
-        //on fait un genre d'index et le core invoker
-        //n'est que le maitre qui connait l'index dans la 
-        //liste de lambdas injectés dans Engine. La liste de lambdas 
-        //engine est private mais elle est accessible via friend.
-        //core invoker INVOKERA avec le CRTP les bonnes fonctions 
-        //correspondantes aux indexes dans la liste private de Engine
-
-        //ensuite, avec sfinae, on filtre et on accepte uniquement
-        //ce qui fait du sens, genre pas injecter un lambdas qui utilise
-        //un system qui n'est pas la.
-
-        /*auto lambda = [this]() { 
-            static_cast<Derived*>(this)->positionSystem.updatePositions();
-        };
-        */
-
         auto invoke_position_update() noexcept {
             static_cast<Derived*>(this)->update();
             // pour l'instant, il apelle tous les update
