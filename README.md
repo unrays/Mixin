@@ -5,7 +5,7 @@ Compile-time C++ experimental ECS engine with CRTP mixin stacks and zero-overhea
 
 I'm just trying out a few things with a new concept I personally explored this week called mixins. It's super cool and allows for very efficient pipelines, which is great for a mini game engine, for example :) I'll definitely be updating the project again soon, so stay tuned!
 
-{description here soon :)}
+*description here really soon :)*
 
 ## Code
 ```cpp
