@@ -14,58 +14,90 @@ Don't worry, I KNOW IT'S NOT QUITE THERE YET, but I'm trying to lay the groundwo
 // Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
 // Licensed under the terms described in the LICENSE file
 
-namespace ecs {
+namespace engine3 {
     struct Empty {
-        void update() noexcept {}
+        void update() { std::cout << "[Empty] Updating last...\n"; }
     };
-
-    template<typename DerivedSystem>
-    struct ISystem {
-    public:
-        void update() noexcept {
-            static_cast<DerivedSystem*>(this)->forward_update()();
-        }
-    };
-
-    template<typename Next>
-    struct PositionSystem : ISystem<PositionSystem<Next>> {
-    public:
-        friend struct ISystem<PositionSystem<Next>>;
-
-    protected:
-        void updatePositions() noexcept {
-            std::cout << "[PositionSystem] Updating...\n";
-
-        }
-
-    private:
-        auto forward_update() noexcept {
-            return [this]() { return updatePositions(); };
-        }
-    };
-
+    
     template<typename Derived>
-    struct CoreInvokerMixin {
-        auto invoke_position_update() noexcept {
-            static_cast<Derived*>(this)->update();
-            // pour l'instant, il apelle tous les update
-            //du système, changer prochainement :)
+    struct ISystem {
+        void info() {
+            std::cout << "MOCK INFO SYSTEM\n";
+        }
+    
+        //juste des methodes utilitaires genre info()
+    };
+    
+    template<typename Implementation>
+    struct IUpdatable {
+        void update() {
+            static_cast<Implementation*>(this)->on_update();
         }
     };
-
-    template<template<typename> class... SystemLayers>
-    struct Engine : CoreInvokerMixin<Engine<SystemLayers...>>,
-                    SystemLayers<Engine<SystemLayers...>>... {};
-
-
-    //pas vraiment engine, plus flux d'exec pour le ecs
-    //essentiellement un pipeline de systems dynamiquement static :)
-
-    //using PhysicsStack =
-    // PositionSystem<VelocitySystem<MovementSystem<EmptySystem>>>;
-
-    /* faire un variadic de stack genre comme des catégories */
-}
+    
+    template<typename Next> // next est useless
+    struct PositionSystem
+         : public ISystem<PositionSystem<Next>>,
+           public IUpdatable<PositionSystem<Next>>
+    {     
+           template<typename Implementation>
+              friend struct ISystem;
+           template<typename Implementation>
+              friend struct IUpdatable;
+    
+    private:
+        void on_update() {
+            std::cout << "[PositionSystem] Updating...\n";
+        }
+    };
+    
+    template<typename Next>
+    struct VelocitySystem
+        : ISystem<VelocitySystem<Next>>,
+          IUpdatable<VelocitySystem<Next>>
+    {
+          template<typename Implementation>
+             friend struct ISystem;
+          template<typename Implementation>
+             friend struct IUpdatable;
+    
+    private:
+        void on_update() {
+            std::cout << "[VelocitySystem] Updating...\n";
+        }
+    };
+    
+    template<typename Next>
+    struct RenderingSystem
+         : ISystem<RenderingSystem<Next>>,
+           IUpdatable<RenderingSystem<Next>>
+    {
+           template<typename Implementation>
+              friend struct ISystem;
+           template<typename Implementation>
+              friend struct IUpdatable;
+    
+    private:
+        void on_update() {
+            std::cout << "[RenderingSystem] Updating...\n";
+        }
+    };
+    
+    //potentiellement mettre dans Engine
+    template<template<typename> class... Layers>
+    struct LayeredPipeline
+        : private Layers<LayeredPipeline<Layers...>>... {
+    public:
+        void update_all() {
+            (static_cast<Layers<LayeredPipeline>*>(this)->update(), ...);
+        }
+    
+    private:
+    
+    };
+    template<template<typename> class... Layers>
+    using Pipeline = LayeredPipeline<Layers...>;
+    }
 ```
 
 ```cpp
@@ -73,9 +105,17 @@ namespace ecs {
 // Licensed under the terms described in the LICENSE file
 
 int main() {
-  using namespace ecs;
+    using namespace engine3;
 
-  Engine<PositionSystem> engine;
-  engine.invoke_position_update();
+    Pipeline<
+        PositionSystem,
+        VelocitySystem
+    > pipeline;
+
+    PositionSystem<VelocitySystem<Empty>> posys;
+
+    posys.update();
+
+    posys.info();
 }
 ```
