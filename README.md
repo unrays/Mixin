@@ -12,6 +12,12 @@ Don't worry, I KNOW IT'S NOT QUITE THERE YET, but I'm trying to lay the groundwo
 ```console
 [ComponentA] updating...
 [ComponentB] updating...
+[ComponentB] updating...
+[ComponentA] updating...
+[Empty] Updating last...
+
+[ComponentA] updating...
+[ComponentB] updating...
 [ComponentA] updating...
 [Empty] Updating last...
 
@@ -20,17 +26,11 @@ Don't worry, I KNOW IT'S NOT QUITE THERE YET, but I'm trying to lay the groundwo
 [ComponentB] updating...
 [Empty] Updating last...
 
-[ComponentA] updating...
 [ComponentB] updating...
 [ComponentB] updating...
 [ComponentA] updating...
 [Empty] Updating last...
 
-[ComponentB] updating...
-[ComponentA] updating...
-[Empty] Updating last...
-
-[ComponentB] updating...
 [ComponentB] updating...
 [ComponentA] updating...
 [Empty] Updating last...
@@ -47,76 +47,83 @@ namespace engine3 {
     };
 
     template<typename Implementation>
-    struct ISystem {
+    struct IComponent {
         friend Implementation;
-
-    public:
-        void info() {
-            std::cout << "MOCK INFO SYSTEM\n";
-        }
-
-        //juste des methodes utilitaires genre info()
-    };
-
-    template<typename Implementation>
-    struct IUpdatable {
-        friend Implementation;
-
+    
     public:
         void update() {
             static_cast<Implementation*>(this)->on_update();
         }
     };
-
-    // possiblement faire des ensembles ou packs
-    template<typename Next> // next est useless
-    struct PositionSystem // pourrait faire quelque chose d'injectable
-         : public ISystem<PositionSystem<Next>>,
-           public IUpdatable<PositionSystem<Next>>
-    {     
-
-    private:
-        void on_update() {
-            std::cout << "[PositionSystem] Updating...\n";
-        }
-    };
-
-    template<typename Next>
-    struct VelocitySystem
-        : ISystem<VelocitySystem<Next>>,
-          IUpdatable<VelocitySystem<Next>>
-    {
-    private:
-        void on_update() {
-            std::cout << "[VelocitySystem] Updating...\n";
-        }
-    };
-
-    template<typename Next>
-    struct RenderingSystem
-         : ISystem<RenderingSystem<Next>>,
-           IUpdatable<RenderingSystem<Next>>
-    {
-    private:
-        void on_update() {
-            std::cout << "[RenderingSystem] Updating...\n";
-        }
-    };
-
-    //potentiellement mettre dans Engine
-    template<template<typename> class... Layers>
-    struct LayeredPipeline
-        : private Layers<LayeredPipeline<Layers...>>... {
+    
+    template<typename Implementation>
+    struct IUpdatable {
+        friend Implementation;
+    
     public:
-        void update_all() {
-            (static_cast<Layers<LayeredPipeline>*>(this)->update(), ...);
+        void update() {
+            static_cast<Implementation*>(this)->on_update();
         }
-
-    private:
-
     };
-    template<template<typename> class... Layers>
-    using Pipeline = LayeredPipeline<Layers...>;
+    
+    template<typename Next = Empty>
+    struct ComponentA : IComponent<ComponentA<Next>> {
+        friend IComponent<ComponentA<Next>>;
+    protected:
+        void on_update() {
+            std::cout << "[ComponentA] updating...\n";
+            next_.update();
+        }
+    
+    private:
+        Next next_;
+    };
+    
+    template<typename Next = Empty>
+    struct ComponentB : IComponent<ComponentB<Next>> {
+        friend IComponent<ComponentB<Next>>;
+    
+    protected:
+        void on_update() {
+            std::cout << "[ComponentB] updating...\n";
+            next_.update();
+        }
+    
+    private:
+        Next next_;
+    };
+    
+    
+    
+    template<typename First, typename... Rest>
+    struct Pipeline {
+        //faire un tuple qui contient des pipelines différents.
+    
+        //chaque elements du tuple est son propre pipeline et il contient
+        //toute la stack d'un des éléments de typename... Ts
+    
+        //lorsqu'on veut caller on specific pipeline, on peux apeller
+        //all et mettre template et sfinae pour specifier quel 
+        //pipeline déclencher.
+    
+    public:
+        Pipeline() : pipelines_(First{}, Rest{}...) {}
+    
+    public:
+        void test() {
+            std::apply([](auto&&... args) {
+                ((args.update()), ...);
+            }, pipelines_);
+        }
+    
+    private:
+        std::tuple<First, Rest...> pipelines_;
+    };
+    
+    template<typename... Components>
+    struct Engine : Components... {
+    
+    };
 }
 ```
 
@@ -127,17 +134,17 @@ namespace engine3 {
 int main() {
     using namespace engine5;
 
-    using GraphicPipeline = ComponentA<ComponentB<ComponentA<Empty>>>;
-    using AudioPipeline   = ComponentB<ComponentA<Empty>>;
-    using PhysicsPipeline = ComponentA<ComponentA<ComponentB<Empty>>>;
-    using UIPipeline      = ComponentB<ComponentB<ComponentA<Empty>>>;
     using NetworkPipeline = ComponentA<ComponentB<ComponentB<ComponentA<Empty>>>>;
+    using GraphicPipeline = ComponentA<ComponentB<ComponentA<Empty>>>;
+    using PhysicsPipeline = ComponentA<ComponentA<ComponentB<Empty>>>;
+    using AudioPipeline   = ComponentB<ComponentB<ComponentA<Empty>>>;
+    using UIPipeline      = ComponentB<ComponentA<Empty>>;
 
     Engine<
         Pipeline<
+            NetworkPipeline,
             GraphicPipeline,
             PhysicsPipeline,
-            NetworkPipeline,
             AudioPipeline,
             UIPipeline
         >
