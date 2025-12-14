@@ -133,12 +133,6 @@ int main() {
     using UIPipeline      = ComponentB<ComponentB<ComponentA<Empty>>>;
     using NetworkPipeline = ComponentA<ComponentB<ComponentB<ComponentA<Empty>>>>;
 
-
-    Pipeline<
-        GraphicPipeline,
-        AudioPipeline
-    > stacked_pipeline;
-
     Engine<
         Pipeline<
             GraphicPipeline,
