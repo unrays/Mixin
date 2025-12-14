@@ -125,17 +125,30 @@ namespace engine3 {
 // Licensed under the terms described in the LICENSE file
 
 int main() {
-    using namespace engine3;
+    using namespace engine5;
+
+    using GraphicPipeline = ComponentA<ComponentB<ComponentA<Empty>>>;
+    using AudioPipeline   = ComponentB<ComponentA<Empty>>;
+    using PhysicsPipeline = ComponentA<ComponentA<ComponentB<Empty>>>;
+    using UIPipeline      = ComponentB<ComponentB<ComponentA<Empty>>>;
+    using NetworkPipeline = ComponentA<ComponentB<ComponentB<ComponentA<Empty>>>>;
+
 
     Pipeline<
-        PositionSystem,
-        VelocitySystem
-    > pipeline;
+        GraphicPipeline,
+        AudioPipeline
+    > stacked_pipeline;
 
-    PositionSystem<VelocitySystem<Empty>> posys;
+    Engine<
+        Pipeline<
+            GraphicPipeline,
+            PhysicsPipeline,
+            NetworkPipeline,
+            AudioPipeline,
+            UIPipeline
+        >
+    > engine;
 
-    posys.update();
-
-    posys.info();
+    engine.test();
 }
 ```
