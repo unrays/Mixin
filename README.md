@@ -12,31 +12,58 @@ Don't worry, I KNOW IT'S NOT QUITE THERE YET, but I'm trying to lay the groundwo
 ```console
 [ComponentA] updating...
 [ComponentB] updating...
-[ComponentB] updating...
-[ComponentA] updating...
-[Empty] Updating last...
-
-[ComponentA] updating...
-[ComponentB] updating...
-[ComponentA] updating...
-[Empty] Updating last...
-
-[ComponentA] updating...
-[ComponentA] updating...
-[ComponentB] updating...
-[Empty] Updating last...
-
-[ComponentB] updating...
-[ComponentB] updating...
 [ComponentA] updating...
 [Empty] Updating last...
 
 [ComponentB] updating...
 [ComponentA] updating...
+[Empty] Updating last...
+
+[ComponentB] updating...
+[ComponentB] updating...
 [Empty] Updating last...
 ```
 
 ## Code
+```cpp
+// Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
+// Licensed under the terms described in the LICENSE file
+
+int main() {
+    using namespace engine8;
+
+    using NetworkPipeline = ComponentA<ComponentB<ComponentB<ComponentA<Empty>>>>;
+    using GraphicPipeline = ComponentA<ComponentB<ComponentA<Empty>>>;
+    using PhysicsPipeline = ComponentA<ComponentA<ComponentB<Empty>>>;
+    using AudioPipeline = ComponentB<ComponentB<ComponentA<Empty>>>;
+    using UIPipeline = ComponentB<ComponentA<Empty>>;
+
+    Pipeline<
+        ComponentA<ComponentB<ComponentB<ComponentA<Empty>>>>
+    > networkPipeline;
+
+    Pipeline<
+        ComponentA<ComponentB<ComponentA<Empty>>>
+    > graphicPipeline;
+
+    PipelineExecutor<
+        Pipeline<ComponentA<ComponentB<ComponentA<Empty>>>>,
+        Pipeline<ComponentB<ComponentA<Empty>>>,
+        Pipeline<ComponentB<ComponentB<Empty>>>
+    > pipelineDispatcher;
+
+    Engine<
+        PipelineExecutor<
+            Pipeline<ComponentA<ComponentB<ComponentA<Empty>>>>,
+            Pipeline<ComponentB<ComponentA<Empty>>>,
+            Pipeline<ComponentB<ComponentB<Empty>>>
+        >
+    > engine;
+
+    engine.update_all();
+}
+```
+
 ```cpp
 // Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
 // Licensed under the terms described in the LICENSE file
@@ -84,18 +111,13 @@ namespace engine3 {
     };
 
     template<typename First, typename... Rest>
-    struct PipelineDispatcher {
-
-
+    struct PipelineExecutor {
     public:
-        PipelineDispatcher() : pipelines_(First{}, Rest{}...) {}
+        PipelineExecutor() : pipelines_(First{}, Rest{}...) {}
 
     public:
         void update_all() noexcept {
             std::apply([](auto&&... args) {
-                //args.pipeline_
-                ((std::cout << typeid(args.layers_).name() << std::endl), ...);
-
                 ((args.update()), ...);
             }, pipelines_);
         }
@@ -104,57 +126,12 @@ namespace engine3 {
         std::tuple<First, Rest...> pipelines_;
     };
 
-    template<
-        typename Layers,
-        template<typename> class Owner = PipelineDispatcher
-    > struct Pipeline : private Layers {
+
+    template<typename Layers>
+    struct Pipeline : private Layers {
+        template<typename, typename...>
+        friend struct PipelineExecutor;
         using type = Layers;
-        friend Owner<Pipeline<Layers>>;
-
-    protected:
-        Layers layers_; // possiblement delete
-
-    };
-
-
-    template<typename First, typename... Rest>
-    struct PipelineManager {
-        //faire un tuple qui contient des pipelines différents.
-
-        //chaque elements du tuple est son propre pipeline et il contient
-        //toute la stack d'un des éléments de typename... Ts
-
-        //lorsqu'on veut caller on specific pipeline, on peux apeller
-        //all et mettre template et sfinae pour specifier quel 
-        //pipeline déclencher.
-
-    public:
-        PipelineManager() : pipelines_(First{}, Rest{}...) {}
-
-
-    public:
-        void update_all() {
-            std::apply([](auto&&... args) {
-                ((args.update()), ...);
-            }, pipelines_);
-        }
-
-        // probablement bouger, juste pour test
-        //peut etre faire un truc avec lambda, voir...
-        template<typename T>
-        auto update() /*noexcept*/ ->
-        std::enable_if_t<
-            std::is_same_v<T, First> ||
-            (std::is_same_v<T, Rest> && ...),
-        void> {
-            std::cout << "[Updating System]\n";
-
-            //une copie... bad
-            std::get<T>(pipelines_).update();
-        }
-
-    private:
-        std::tuple<First, Rest...> pipelines_;
     };
 
     template<typename... Components>
@@ -164,53 +141,5 @@ namespace engine3 {
         //normalement, je penses pas qu'il y aura tant de code que ca ici
         //il devrait hériter des components qui sont des specialisations
     };
-}
-```
-
-```cpp
-// Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
-// Licensed under the terms described in the LICENSE file
-
-int main() {
-    using namespace engine5;
-
-    using NetworkPipeline = ComponentA<ComponentB<ComponentB<ComponentA<Empty>>>>;
-    using GraphicPipeline = ComponentA<ComponentB<ComponentA<Empty>>>;
-    using PhysicsPipeline = ComponentA<ComponentA<ComponentB<Empty>>>;
-    using AudioPipeline   = ComponentB<ComponentB<ComponentA<Empty>>>;
-    using UIPipeline      = ComponentB<ComponentA<Empty>>;
-
-    Pipeline<
-        ComponentA<ComponentB<ComponentB<ComponentA<Empty>>>>
-    > networkPipeline;
-
-    Pipeline<
-        ComponentA<ComponentB<ComponentA<Empty>>>
-    > graphicPipeline;
-
-    PipelineDispatcher<
-        Pipeline<ComponentA<ComponentB<ComponentA<Empty>>>>
-    > pipelineDispatcher;
-
-    pipelineDispatcher.update_all();
-
-    //graphicPipeline.update();
-
-    PipelineManager<
-        GraphicPipeline,
-        AudioPipeline
-    > stacked_pipeline;
-
-    Engine<
-        PipelineManager <
-            NetworkPipeline,
-            GraphicPipeline,
-            PhysicsPipeline,
-            AudioPipeline,
-            UIPipeline
-        >
-    > engine;
-
-    engine.test();
 }
 ```
