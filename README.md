@@ -143,3 +143,194 @@ namespace engine8 {
     };
 }
 ```
+
+# Hook system I'm currently working on :)
+```cpp
+// Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
+// Licensed under the terms described in the LICENSE file
+
+namespace hooks {
+    namespace Traits {
+        template<typename T, typename Enable = void>
+        struct has_on_created : std::false_type {};
+
+        template<typename T>
+        struct has_on_created<
+            T,
+            typename std::void_t<
+            decltype(std::declval<T>().on_created())>
+        > : std::true_type {
+        };
+
+        /*********************************************/
+
+        template<typename T, typename Enable = void>
+        struct has_on_destroyed : std::false_type {};
+
+        template<typename T>
+        struct has_on_destroyed<
+            T,
+            typename std::void_t<
+            decltype(std::declval<T>().on_destroyed())>
+        > : std::true_type {
+        };
+
+        /*********************************************/
+
+        template<typename T, typename Enable = void>
+        struct has_on_update : std::false_type {};
+
+        template<typename T>
+        struct has_on_update<
+            T,
+            typename std::void_t<
+            decltype(std::declval<T>().on_update())>
+        > : std::true_type {
+        };
+    }
+    
+
+    template<typename Derived>
+    struct Base {
+    public:
+        Base(std::true_type) {
+
+        }
+
+        Base(std::false_type) {
+
+        }
+
+        Base() {
+            std::cout << "test";
+        }
+
+
+
+
+
+
+    public:
+        void foo(int) {
+            std::cout << "Int specialization\n";
+        }
+
+        void foo(float) {
+            std::cout << "Float specialization\n";
+        }
+
+        template<typename T>
+        auto foo(T) ->
+            std::enable_if_t<std::is_same_v<T, bool>, void> {
+            std::cout << "Boolean specialization\n";
+        }
+
+    private:
+
+    };
+
+    /*template<typename Derived>
+    struct Base < Derived, std::enable_if_t < std::is_member_function_pointer_v<decltype(&Derived::onCreated) >>> {
+    public:
+        void onCreated() override {
+            std::cout << "Created specialized base!\n";
+            static_cast<Derived*>(this)->onCreated();
+        }
+
+        ~Base() {
+            std::cout << "Destroyed specialized base!\n";
+        }
+    };*/
+
+    template<typename Derived>
+    struct testBase {
+    public:
+        void forward_constructor(std::true_type) {
+            std::cout << "Function 'on_created' detected and being used.\n";
+            static_cast<Derived*>(this)->on_created();
+        }
+
+        void forward_constructor(std::false_type) {
+            std::cout << "Function 'on_created' not detected, using default...\n";
+        }
+
+        testBase() {
+            forward_constructor(Traits::has_on_created<Derived>{});
+        }
+
+    public:
+        void forward_destructor(std::true_type) {
+            std::cout << "Function 'on_destroyed' detected and being used.\n";
+            static_cast<Derived*>(this)->on_destroyed();
+        }
+
+        void forward_destructor(std::false_type) {
+            std::cout << "Function 'on_destroyed' not detected, using default...\n";
+        }
+
+        ~testBase() {
+            forward_destructor(Traits::has_on_destroyed<Derived>{});
+        }
+
+    public:
+        void forward_update(std::true_type) {
+            std::cout << "Function 'on_update' detected and being used.\n";
+            static_cast<Derived*>(this)->on_update();
+        }
+
+        void forward_update(std::false_type) {
+            std::cout << "Function 'on_update' not detected, using default...\n";
+        }
+
+        void update() {
+            forward_update(Traits::has_on_update<Derived>{});
+        }
+
+
+    private:
+
+
+    };
+
+    /*on_created()
+    on_init()
+    on_enable()
+    on_disable()
+    update()
+    fixed_update()
+    late_update()
+    on_destroy()
+    */
+
+    struct testDerived : testBase<testDerived> {
+    public:
+        void on_created() {
+            std::cout << "Creating testDerived...\n";
+        }
+
+        void on_destroyed() {
+            std::cout << "Destroying testDerived...\n";
+        }
+
+        void on_update() {
+            std::cout << "Updating testDerived...\n";
+        }
+
+
+    private:
+
+
+    };
+
+    struct Derived : Base<Derived> {
+    public:
+        void onCreated() {
+            std::cout << "onCreated in Derived\n";
+        }
+
+    private:
+
+
+    };
+}
+```
