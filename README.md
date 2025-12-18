@@ -9,6 +9,8 @@ Don't worry, I KNOW IT'S NOT QUITE THERE YET, but I'm trying to lay the groundwo
 
 *description here really soon :)*
 
+It's looking pretty rough in it's current form, I'm planning to work on it as soon as my exam week is finished.
+
 ```console
 [ComponentA] updating...
 [ComponentB] updating...
