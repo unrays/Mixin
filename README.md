@@ -146,6 +146,47 @@ namespace engine8 {
 }
 ```
 
+# Latest hook system re-built from the ground up since my first and catastrophic try
+```cpp
+// Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
+// Licensed under the terms described in the LICENSE file
+
+template<typename Hooked>
+struct IEventHookable {
+public:
+    IEventHookable() { //static pour faire un seul check
+        if constexpr (requires(Hooked h) { h.onCreated(); })
+            static_cast<Hooked*>(this)->onCreated();
+        else std::cout << "No 'onCreated' using default.\n"; //orDefault()
+    }
+
+    ~IEventHookable() {
+        if constexpr (requires(Hooked h) { h.onDestroyed(); })
+            static_cast<Hooked*>(this)->onDestroyed();
+        else std::cout << "No 'onDestroyed' using default.\n";
+    }
+};
+
+//template<typename Implementation>
+//struct ISystem : private IEventHookable<Implementation> {
+//public:           friend IEventHookable<Implementation>;
+//};
+
+
+
+struct System : private IEventHookable<System> {
+public:          friend IEventHookable<System>;
+private:
+    void onCreated() {
+        std::cout << "Creating new system...\n";
+    }
+
+    void onDestroyed() {
+        std::cout << "Destroying system...\n";
+    }
+};
+```
+
 # Hook system I'm currently working on :)
 ```cpp
 // Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
