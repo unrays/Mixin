@@ -229,6 +229,14 @@ int main() {
 }
 ```
 
+```console
+Creating new system...
+No 'onPreUpdate' using default.
+Updating System...
+No 'onPostUpdate' using default.
+Destroying system...
+```
+
 # Hook system I WAS currently working on :)
 ```cpp
 // Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
