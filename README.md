@@ -167,13 +167,6 @@ public:
     }
 };
 
-//template<typename Implementation>
-//struct ISystem : private IEventHookable<Implementation> {
-//public:           friend IEventHookable<Implementation>;
-//};
-
-
-
 struct System : private IEventHookable<System> {
 public:          friend IEventHookable<System>;
 private:
