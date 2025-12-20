@@ -184,7 +184,7 @@ private:
 };
 ```
 
-# Hook system I'm currently working on :)
+# Hook system I WAS currently working on :)
 ```cpp
 // Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
 // Licensed under the terms described in the LICENSE file
