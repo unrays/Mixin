@@ -206,7 +206,7 @@ struct IUpdatable {
 };
 
 struct System : public IEventHookable<System>, public IUpdatable<System> {
-public:         friend IEventHookable<System>; friend IUpdatable;
+public:         friend IEventHookable<System>; friend IUpdatable<System>;
 private:
     void onCreated() {
         std::cout << "Creating new system...\n";
