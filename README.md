@@ -148,7 +148,7 @@ namespace engine8 {
 
 # Latest hook system re-built from the ground up since my first and catastrophic try
 
-### *I'm seriously very proud of this result; I really worked hard to create a very simple and intuitive API! The beauty of it is that when you instantiate a new System, the only method available to execute for the object is .update(), only that one, nothing else. I think that's excellent, I'm very happy :)*
+##### *I'm seriously very proud of this result; I really worked hard to create a very simple and intuitive API! The beauty of it is that when you instantiate a new System, the only method available to execute for the object is .update(), only that one, nothing else. I think that's excellent, I'm very happy :)*
 ```cpp
 // Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
 // Licensed under the terms described in the LICENSE file
