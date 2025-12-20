@@ -153,8 +153,8 @@ namespace engine8 {
 
 template<typename Hooked>
 struct IEventHookable {
-public:
-    IEventHookable() { //static pour faire un seul check
+protected:
+    IEventHookable() {
         if constexpr (requires(Hooked h) { h.onCreated(); })
             static_cast<Hooked*>(this)->onCreated();
         else onCreatedDefault();
@@ -166,16 +166,52 @@ public:
         else onDestroyedDefault();
     }
 
-public:
+protected:
+    void invokePreUpdate() {
+        if constexpr (requires(Hooked h) { h.onPreUpdate(); })
+            static_cast<Hooked*>(this)->onPreUpdate();
+        else onPreUpdateDefault();
+    }
+
+    void invokePostUpdate() {
+        if constexpr (requires(Hooked h) { h.onPostUpdate(); })
+            static_cast<Hooked*>(this)->onPostUpdate();
+        else onPostUpdateDefault();
+    }
+
+    void invokeUpdate() {
+        invokePreUpdate();
+        if constexpr (requires(Hooked h) { h.onUpdate(); })
+            static_cast<Hooked*>(this)->onUpdate();
+        else onUpdateDefault();
+        invokePostUpdate();
+    }
+
+protected:
     void onCreatedDefault() { std::cout << "No 'onCreated' using default.\n"; }
     void onDestroyedDefault() { std::cout << "No 'onDestroyed' using default.\n"; }
+
+    void onUpdateDefault() { std::cout << "No 'onUpdate' using default.\n"; }
+    void onPreUpdateDefault() { std::cout << "No 'onPreUpdate' using default.\n"; }
+    void onPostUpdateDefault() { std::cout << "No 'onPostUpdate' using default.\n"; }
 };
 
-struct System : private IEventHookable<System> {
-public:          friend IEventHookable<System>;
+template<typename Derived>
+struct IUpdatable {
+    void update()
+        requires std::is_base_of_v<IEventHookable<Derived>, Derived>
+    { static_cast<Derived*>(this)->invokeUpdate(); }
+};
+
+struct System : public IEventHookable<System>, public IUpdatable<System> {
+public:         friend IEventHookable<System>; friend IUpdatable;
 private:
     void onCreated() {
         std::cout << "Creating new system...\n";
+    }
+
+    void onUpdate() {
+        std::cout << "Updating System...\n";
     }
 
     void onDestroyed() {
@@ -185,6 +221,8 @@ private:
 ```
 
 # Hook system I WAS currently working on :)
+
+### *I'm seriously very proud of this result; I really worked hard to create a very simple and intuitive API! The beauty of it is that when you instantiate a new System, the only method available to execute for the object is .update(), only that one, nothing else. I think that's excellent, I'm very happy :)*
 ```cpp
 // Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
 // Licensed under the terms described in the LICENSE file
