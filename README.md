@@ -157,14 +157,18 @@ public:
     IEventHookable() { //static pour faire un seul check
         if constexpr (requires(Hooked h) { h.onCreated(); })
             static_cast<Hooked*>(this)->onCreated();
-        else std::cout << "No 'onCreated' using default.\n"; //orDefault()
+        else onCreatedDefault();
     }
 
     ~IEventHookable() {
         if constexpr (requires(Hooked h) { h.onDestroyed(); })
             static_cast<Hooked*>(this)->onDestroyed();
-        else std::cout << "No 'onDestroyed' using default.\n";
+        else onDestroyedDefault();
     }
+
+public:
+    void onCreatedDefault() { std::cout << "No 'onCreated' using default.\n"; }
+    void onDestroyedDefault() { std::cout << "No 'onDestroyed' using default.\n"; }
 };
 
 struct System : private IEventHookable<System> {
