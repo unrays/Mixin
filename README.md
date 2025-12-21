@@ -111,18 +111,12 @@ namespace engine {
             if constexpr (requires(Hooked h) { h.onCreated(); })
                 static_cast<Hooked*>(this)->onCreated();
             else onCreatedDefault();
-
-            std::cout << "System @" << this << '\n';
-
         }
 
         ~EventHookable() {
             if constexpr (requires(Hooked h) { h.onDestroyed(); })
                 static_cast<Hooked*>(this)->onDestroyed();
             else onDestroyedDefault();
-
-            std::cout << "System @" << this << '\n';
-
         }
 
     protected:
