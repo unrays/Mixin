@@ -12,18 +12,25 @@ Don't worry, I KNOW IT'S NOT QUITE THERE YET, but I'm trying to lay the groundwo
 It's looking pretty rough in it's current form, I'm planning to work on it as soon as my exam week is finished.
 
 ```console
-[ComponentA] updating...
-[ComponentB] updating...
-[ComponentA] updating...
-[Empty] Updating last...
-
-[ComponentB] updating...
-[ComponentA] updating...
-[Empty] Updating last...
-
-[ComponentB] updating...
-[ComponentB] updating...
-[Empty] Updating last...
+Creating new system...
+Creating new system...
+Creating new system...
+No 'onPreUpdate' using default.
+Updating System...
+No 'onPostUpdate' using default.
+Calling next
+No 'onPreUpdate' using default.
+Updating System...
+No 'onPostUpdate' using default.
+Calling next
+No 'onPreUpdate' using default.
+Updating System...
+No 'onPostUpdate' using default.
+Calling next
+Updating Empty system...
+Destroying system...
+Destroying system...
+Destroying system...
 ```
 
 ## Code
@@ -34,35 +41,38 @@ It's looking pretty rough in it's current form, I'm planning to work on it as so
 int main() {
     using namespace engine8;
 
-    using NetworkPipeline = ComponentA<ComponentB<ComponentB<ComponentA<Empty>>>>;
-    using GraphicPipeline = ComponentA<ComponentB<ComponentA<Empty>>>;
-    using PhysicsPipeline = ComponentA<ComponentA<ComponentB<Empty>>>;
-    using AudioPipeline = ComponentB<ComponentB<ComponentA<Empty>>>;
-    using UIPipeline = ComponentB<ComponentA<Empty>>;
+    using NetworkPipeline = SystemA<SystemB<SystemB<SystemA<Empty>>>>;
+    using GraphicPipeline = SystemA<SystemB<SystemA<Empty>>>;
+    using PhysicsPipeline = SystemA<SystemA<SystemB<Empty>>>;
+    using AudioPipeline = SystemB<SystemB<SystemtA<Empty>>>;
+    using UIPipeline = SystemB<SystemA<Empty>>;
 
     Pipeline<
-        ComponentA<ComponentB<ComponentB<ComponentA<Empty>>>>
+        SystemA<SystemB<SystemB<SystemA<Empty>>>>
     > networkPipeline;
 
     Pipeline<
-        ComponentA<ComponentB<ComponentA<Empty>>>
+        SystemA<SystemB<SystemtA<Empty>>>
     > graphicPipeline;
 
     PipelineExecutor<
-        Pipeline<ComponentA<ComponentB<ComponentA<Empty>>>>,
-        Pipeline<ComponentB<ComponentA<Empty>>>,
-        Pipeline<ComponentB<ComponentB<Empty>>>
+        Pipeline<SystemA<SystemB<SystemA<Empty>>>>,
+        Pipeline<SystemB<SystemA<Empty>>>,
+        Pipeline<SystemB<SystemB<Empty>>>
     > pipelineDispatcher;
 
     Engine<
         PipelineExecutor<
-            Pipeline<ComponentA<ComponentB<ComponentA<Empty>>>>,
-            Pipeline<ComponentB<ComponentA<Empty>>>,
-            Pipeline<ComponentB<ComponentB<Empty>>>
+            Pipeline<SystemA<SystemB<SystemA<Empty>>>>,
+            Pipeline<SystemB<SystemA<Empty>>>,
+            Pipeline<SystemB<SystemB<Empty>>>
         >
     > engine;
 
-    engine.update_all();
+    //engine.update_all();
+
+    System<System<System<Empty>>> sys;
+    sys.update();
 }
 ```
 
@@ -71,77 +81,137 @@ int main() {
 // Licensed under the terms described in the LICENSE file
 
 namespace engine8 {
+    template<typename Hooked>
+    struct IEventHookable {
+    protected:
+        IEventHookable() {
+            if constexpr (requires(Hooked h) { h.onCreated(); })
+                static_cast<Hooked*>(this)->onCreated();
+            else onCreatedDefault();
+        }
+    
+        ~IEventHookable() {
+            if constexpr (requires(Hooked h) { h.onDestroyed(); })
+                static_cast<Hooked*>(this)->onDestroyed();
+            else onDestroyedDefault();
+        }
+    
+    protected:
+        void invokePreUpdate() {
+            if constexpr (requires(Hooked h) { h.onPreUpdate(); })
+                static_cast<Hooked*>(this)->onPreUpdate();
+            else onPreUpdateDefault();
+        }
+    
+        void invokeUpdate() {
+            invokePreUpdate();
+            if constexpr (requires(Hooked h) { h.onUpdate(); })
+                static_cast<Hooked*>(this)->onUpdate();
+            else onUpdateDefault();
+            invokePostUpdate();
+        }
+    
+        void invokePostUpdate() {
+            if constexpr (requires(Hooked h) { h.onPostUpdate(); })
+                static_cast<Hooked*>(this)->onPostUpdate();
+            else onPostUpdateDefault();
+        }
+    
+    protected:
+        void onCreatedDefault() { std::cout << "No 'onCreated' using default.\n"; }
+        void onDestroyedDefault() { std::cout << "No 'onDestroyed' using default.\n"; }
+    
+        void onUpdateDefault() { std::cout << "No 'onUpdate' using default.\n"; }
+        void onPreUpdateDefault() { std::cout << "No 'onPreUpdate' using default.\n"; }
+        void onPostUpdateDefault() { std::cout << "No 'onPostUpdate' using default.\n"; }
+    };
+    
+    template<typename Derived>
+    struct IUpdatable {
+        void update()
+            requires std::is_base_of_v<IEventHookable<Derived>, Derived>
+        { static_cast<Derived*>(this)->invokeUpdate(); }
+    };
+    
     struct Empty {
-        void update() { std::cout << "[Empty] Updating last...\n"; }
-    };
-
-    template<typename Implementation>
-    struct IComponent {
-        friend Implementation;
-
-    public:
         void update() {
-            static_cast<Implementation*>(this)->on_update();
+            std::cout << "Updating Empty system...\n";
         }
     };
-
-    template<typename Next = Empty>
-    struct ComponentA : IComponent<ComponentA<Next>> {
-        friend IComponent<ComponentA<Next>>;
-    protected:
-        void on_update() {
-            std::cout << "[ComponentA] updating...\n";
+    
+    template<typename Derived, typename Next>
+    struct IUpdateLinkable {
+    public:
+        void update()
+            requires requires(Next& n) { n.update(); }
+            && std::is_base_of_v<IEventHookable<Derived>, Derived>
+        { 
+            static_cast<Derived*>(this)->invokeUpdate();
+            std::cout << "Calling next\n";
             next_.update();
         }
-
+    
     private:
         Next next_;
+    
     };
-
-    template<typename Next = Empty>
-    struct ComponentB : IComponent<ComponentB<Next>> {
-        friend IComponent<ComponentB<Next>>;
-
-    protected:
-        void on_update() {
-            std::cout << "[ComponentB] updating...\n";
-            next_.update();
-        }
-
+    
+    #define SYSTEM_HOOKS(Derived, Next)           \
+        IUpdateLinkable<Derived, Next>,           \
+        IEventHookable<Derived>                  
+    
+    #define SYSTEM_FRIENDS(Derived, Next)         \
+        friend IEventHookable<Derived>;           \
+        friend IUpdateLinkable<Derived, Next>;
+    
+    template<typename Next>
+    struct System : SYSTEM_HOOKS  (System<Next>, Next) {
+    public:         SYSTEM_FRIENDS(System<Next>, Next)
     private:
-        Next next_;
-    };
-
-    template<typename First, typename... Rest>
-    struct PipelineExecutor {
-    public:
-        PipelineExecutor() : pipelines_(First{}, Rest{}...) {}
-
-    public:
-        void update_all() noexcept {
-            std::apply([](auto&&... args) {
-                ((args.update()), ...);
-            }, pipelines_);
+        void onCreated() {
+            std::cout << "Creating new system...\n";
         }
-
-    private:
-        std::tuple<First, Rest...> pipelines_;
+    
+        void onUpdate() {
+            std::cout << "Updating System...\n";
+        }
+    
+        void onDestroyed() {
+            std::cout << "Destroying system...\n";
+        }
     };
-
-
+    
     template<typename Layers>
     struct Pipeline : private Layers {
         template<typename, typename...>
         friend struct PipelineExecutor;
         using type = Layers;
     };
-
+    
+    template<typename First, typename... Rest>
+    struct PipelineExecutor {
+    public:
+        PipelineExecutor() : pipelines_(First{}, Rest{}...) {}
+    
+    public:
+        void update_all() noexcept {
+            std::apply([](auto&&... args) {
+                ((args.update()), ...);
+            }, pipelines_);
+        }
+    
+    private:
+        std::tuple<First, Rest...> pipelines_;
+    };
+    
     template<typename... Components>
     struct Engine : Components... {
         //genre sfinae {if un des variadic est un pipeline, iterer}
-
+    
         //normalement, je penses pas qu'il y aura tant de code que ca ici
         //il devrait hériter des components qui sont des specialisations
+    
+        //a la limite, faire un system qui passe registry sur toutes les étages
     };
 }
 ```
