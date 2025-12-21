@@ -160,7 +160,7 @@ namespace engine {
         }
     };
 
-    struct Empty {
+    struct EmptyLink {
         void update() {
             std::cout << "Updating Empty system...\n";
         }
