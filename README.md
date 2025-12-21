@@ -49,7 +49,7 @@ Destroying system...
 // Licensed under the terms described in the LICENSE file
 
 int main() {
-    using namespace engine8;
+    using namespace engine;
 
     using NetworkPipeline = SystemA<SystemB<SystemB<SystemA<Empty>>>>;
     using GraphicPipeline = SystemA<SystemB<SystemA<Empty>>>;
@@ -90,29 +90,35 @@ int main() {
 // Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
 // Licensed under the terms described in the LICENSE file
 
-namespace engine8 {
+namespace engine {
     template<typename Hooked>
-    struct IEventHookable {
+    struct EventHookable {
     protected:
-        IEventHookable() {
+        EventHookable() {
             if constexpr (requires(Hooked h) { h.onCreated(); })
                 static_cast<Hooked*>(this)->onCreated();
             else onCreatedDefault();
+
+            std::cout << "System @" << this << '\n';
+
         }
-    
-        ~IEventHookable() {
+
+        ~EventHookable() {
             if constexpr (requires(Hooked h) { h.onDestroyed(); })
                 static_cast<Hooked*>(this)->onDestroyed();
             else onDestroyedDefault();
+
+            std::cout << "System @" << this << '\n';
+
         }
-    
+
     protected:
         void invokePreUpdate() {
             if constexpr (requires(Hooked h) { h.onPreUpdate(); })
                 static_cast<Hooked*>(this)->onPreUpdate();
             else onPreUpdateDefault();
         }
-    
+
         void invokeUpdate() {
             invokePreUpdate();
             if constexpr (requires(Hooked h) { h.onUpdate(); })
@@ -120,107 +126,144 @@ namespace engine8 {
             else onUpdateDefault();
             invokePostUpdate();
         }
-    
+
         void invokePostUpdate() {
             if constexpr (requires(Hooked h) { h.onPostUpdate(); })
                 static_cast<Hooked*>(this)->onPostUpdate();
             else onPostUpdateDefault();
         }
-    
+
     protected:
         void onCreatedDefault() { std::cout << "No 'onCreated' using default.\n"; }
         void onDestroyedDefault() { std::cout << "No 'onDestroyed' using default.\n"; }
-    
+
         void onUpdateDefault() { std::cout << "No 'onUpdate' using default.\n"; }
         void onPreUpdateDefault() { std::cout << "No 'onPreUpdate' using default.\n"; }
         void onPostUpdateDefault() { std::cout << "No 'onPostUpdate' using default.\n"; }
+
+        //possiblement réfléchir sur un hook onNext();
     };
-    
+
     template<typename Derived>
-    struct IUpdatable {
+    struct Updatable {
         void update()
-            requires std::is_base_of_v<IEventHookable<Derived>, Derived>
-        { static_cast<Derived*>(this)->invokeUpdate(); }
+            requires std::is_base_of_v<EventHookable<Derived>, Derived>
+        {
+            static_cast<Derived*>(this)->invokeUpdate();
+        }
     };
-    
+
     struct Empty {
         void update() {
             std::cout << "Updating Empty system...\n";
         }
     };
-    
+
     template<typename Derived, typename Next>
-    struct IUpdateLinkable {
+    struct UpdateLinkable {
     public:
         void update()
             requires requires(Next& n) { n.update(); }
-            && std::is_base_of_v<IEventHookable<Derived>, Derived>
-        { 
+        && std::is_base_of_v<EventHookable<Derived>, Derived>
+        {
             static_cast<Derived*>(this)->invokeUpdate();
             std::cout << "Calling next\n";
             next_.update();
         }
-    
+
     private:
         Next next_;
-    
+
     };
-    
-    #define SYSTEM_HOOKS(Derived, Next)           \
-        IUpdateLinkable<Derived, Next>,           \
-        IEventHookable<Derived>                  
-    
-    #define SYSTEM_FRIENDS(Derived, Next)         \
-        friend IEventHookable<Derived>;           \
-        friend IUpdateLinkable<Derived, Next>;
-    
-    template<typename Next>
-    struct System : SYSTEM_HOOKS  (System<Next>, Next) {
-    public:         SYSTEM_FRIENDS(System<Next>, Next)
+
+#pragma region [System] Prototype
+    struct System : public EventHookable<System>, public Updatable<System> {
+    public:         friend EventHookable<System>; friend Updatable<System>;
     private:
         void onCreated() {
-            std::cout << "Creating new system...\n";
+            std::cout << "Creating new System...\n";
         }
-    
+
         void onUpdate() {
             std::cout << "Updating System...\n";
         }
-    
+
+        void onPostUpdate() {
+            std::cout << "Post updating the last system of the stack...\n";
+        }
+
         void onDestroyed() {
-            std::cout << "Destroying system...\n";
+            std::cout << "Destroying System...\n";
         }
     };
-    
+#pragma endregion
+
+#pragma region [Linked System] Prototype
+    #define SYSTEM_HOOKS(Derived, Next)         \
+        UpdateLinkable<Derived, Next>,          \
+        EventHookable<Derived>                  
+
+    #define SYSTEM_FRIENDS(Derived, Next)       \
+        friend EventHookable<Derived>;          \
+        friend UpdateLinkable<Derived, Next>;
+
+    template<typename Next>
+    struct LinkedSystem : SYSTEM_HOOKS  (LinkedSystem<Next>, Next) {
+    public:               SYSTEM_FRIENDS(LinkedSystem<Next>, Next)
+    private:
+        void onCreated() {
+            std::cout << "Creating new Linked System...\n";
+        }
+
+        void onUpdate() {
+            std::cout << "Updating Linked System...\n";
+        }
+
+        void onDestroyed() {
+            std::cout << "Destroying Linked System...\n";
+        }
+    };
+#pragma endregion
+
     template<typename Layers>
     struct Pipeline : private Layers {
         template<typename, typename...>
         friend struct PipelineExecutor;
         using type = Layers;
+
+    public:
+        Pipeline() {
+            std::cout << "Creating new pipeline\n";
+        }
+
+        ~Pipeline() {
+            std::cout << "Destroying pipeline\n";
+        }
     };
-    
+
     template<typename First, typename... Rest>
     struct PipelineExecutor {
     public:
-        PipelineExecutor() : pipelines_(First{}, Rest{}...) {}
-    
+        PipelineExecutor() : pipelines_() {}
+
     public:
         void update_all() noexcept {
             std::apply([](auto&&... args) {
                 ((args.update()), ...);
             }, pipelines_);
         }
-    
+
     private:
         std::tuple<First, Rest...> pipelines_;
     };
-    
+
     template<typename... Components>
     struct Engine : Components... {
         //genre sfinae {if un des variadic est un pipeline, iterer}
-    
+
         //normalement, je penses pas qu'il y aura tant de code que ca ici
         //il devrait hériter des components qui sont des specialisations
-    
+
         //a la limite, faire un system qui passe registry sur toutes les étages
     };
 }
