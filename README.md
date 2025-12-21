@@ -54,7 +54,7 @@ int main() {
     using NetworkPipeline = SystemA<SystemB<SystemB<SystemA<Empty>>>>;
     using GraphicPipeline = SystemA<SystemB<SystemA<Empty>>>;
     using PhysicsPipeline = SystemA<SystemA<SystemB<Empty>>>;
-    using AudioPipeline = SystemB<SystemB<SystemtA<Empty>>>;
+    using AudioPipeline = SystemB<SystemB<SystemA<Empty>>>;
     using UIPipeline = SystemB<SystemA<Empty>>;
 
     Pipeline<
@@ -62,7 +62,7 @@ int main() {
     > networkPipeline;
 
     Pipeline<
-        SystemA<SystemB<SystemtA<Empty>>>
+        SystemA<SystemB<SystemA<Empty>>>
     > graphicPipeline;
 
     PipelineExecutor<
