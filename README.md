@@ -17,6 +17,8 @@ For example, you only need to look at the System class, which is a mock of a sys
 
 Well, I think I've said enough for today. I wish you a wonderful rest of the day and a happy holiday season, a magnificent end to the year ;) Until next time!
 
+---
+
 ```console
 Creating new system...
 Creating new system...
