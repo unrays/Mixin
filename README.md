@@ -111,12 +111,18 @@ namespace engine {
             if constexpr (requires(Hooked h) { h.onCreated(); })
                 static_cast<Hooked*>(this)->onCreated();
             else onCreatedDefault();
+
+            //std::cout << "System @" << this << '\n';
+
         }
 
         ~EventHookable() {
             if constexpr (requires(Hooked h) { h.onDestroyed(); })
                 static_cast<Hooked*>(this)->onDestroyed();
             else onDestroyedDefault();
+
+            //std::cout << "System @" << this << '\n';
+
         }
 
     protected:
@@ -171,7 +177,7 @@ namespace engine {
     public:
         void update()
             requires requires(Next& n) { n.update(); }
-        && std::is_base_of_v<EventHookable<Derived>, Derived>
+            && std::is_base_of_v<EventHookable<Derived>, Derived>
         {
             static_cast<Derived*>(this)->invokeUpdate();
             std::cout << "Calling next\n";
@@ -206,11 +212,11 @@ namespace engine {
 #pragma endregion
 
 #pragma region [Linked System] Prototype
-    #define SYSTEM_HOOKS(Derived, Next)         \
+#define SYSTEM_HOOKS(Derived, Next)         \
         UpdateLinkable<Derived, Next>,          \
         EventHookable<Derived>                  
 
-    #define SYSTEM_FRIENDS(Derived, Next)       \
+#define SYSTEM_FRIENDS(Derived, Next)       \
         friend EventHookable<Derived>;          \
         friend UpdateLinkable<Derived, Next>;
 
@@ -240,11 +246,11 @@ namespace engine {
 
     public:
         Pipeline() {
-            std::cout << "Creating new pipeline\n";
+            std::cout << "Creating new Pipeline...\n";
         }
 
         ~Pipeline() {
-            std::cout << "Destroying pipeline\n";
+            std::cout << "Destroying Pipeline...\n";
         }
     };
 
@@ -272,6 +278,98 @@ namespace engine {
         //il devrait hériter des components qui sont des specialisations
 
         //a la limite, faire un system qui passe registry sur toutes les étages
+    };
+
+    /*=========================================*/
+
+    template<typename Derived>
+    struct Singleton {
+    public:
+        static Derived& instance() {
+            static Derived instance(Token{});
+            return instance;
+        }
+
+    protected:
+        struct Token {};
+
+        Singleton(Token) = default;
+
+    private:
+        Singleton(const Singleton&) = delete;
+        Singleton& operator=(const Singleton&) = delete;
+        Singleton(Singleton&&) = delete;
+        Singleton& operator=(Singleton&&) = delete;
+    };
+
+    struct World : Singleton<World> {
+        template<typename T>
+        friend struct WorldProxy;
+
+    public:
+        struct Configuration {
+            using QueryReturnType = int;
+        };
+
+    public:
+        void invoke() const {
+            std::cout << "Ivoking World\n";
+        }
+
+    private:
+        void query() {
+            std::cout << "World -> query...\n";
+        }
+
+        void emplace() {
+            std::cout << "World -> emplace...\n";
+        }
+
+        void update() {
+            std::cout << "pas certain que c'est une fonc de world...\n";
+        }
+
+    private:
+        // ECS <- CRTP <- SYSTEM CALL
+        // crtp qui garde la reference vers le ecs
+        // system qui call son crtp dans update
+        // j'imagine qu'il pourrait genre le query
+        // genre crtp::query([](){ lambda }) qui return ecs.query(->&lambda) view
+    };
+
+    template<typename Derived>
+    struct WorldProxy {
+    public:
+        void test() {
+            std::cout << "test\n";
+        }
+
+        World& forward() {
+            return World::getInstance();
+        }
+
+        void query_world() { //faire un using type dans ecs pour determiner le tuype de retour
+            World::getInstance().query();
+        }
+
+
+
+    private:
+
+
+    };
+
+    struct MockSystem : private WorldProxy<MockSystem> {
+    public:
+        void update() {
+            //this->forward().invoke();
+
+            this->query_world();
+        }
+
+    private:
+
+
     };
 }
 ```
