@@ -345,7 +345,7 @@ namespace engine {
         }
 
         World& forward() {
-            return World::getInstance();
+            return World::instance();
         }
 
         void query_world() { //faire un using type dans ecs pour determiner le tuype de retour
