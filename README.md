@@ -374,7 +374,9 @@ namespace engine {
 }
 ```
 
-# Latest Singleton + Ecs architecture
+# Latest progress on the ECS architecture
+
+##### *It's really really cool, custom CRTP Meyers Singleton + Proxy for secure communication with systems*
 ```cpp
 // Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
 // Licensed under the terms described in the LICENSE file
