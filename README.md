@@ -374,6 +374,105 @@ namespace engine {
 }
 ```
 
+# Latest Singleton + Ecs architecture
+```cpp
+// Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
+// Licensed under the terms described in the LICENSE file
+
+template<typename Derived>
+struct Singleton {
+public:
+    static Derived& instance() {
+        static Derived instance(Token{});
+        return instance;
+    }
+
+protected:
+    struct Token {};
+
+    explicit Singleton(Token) {}
+
+private:
+    Singleton() = delete;
+    Singleton(const Singleton&) = delete;
+    Singleton& operator=(const Singleton&) = delete;
+    Singleton(Singleton&&) = delete;
+    Singleton& operator=(Singleton&&) = delete;
+};
+
+struct World : Singleton<World>, EventHookable<World> {
+public:
+    friend struct WorldProxy;
+    explicit World(typename Singleton::Token t)
+        : Singleton<World>(t) {}
+    friend EventHookable<World>;
+
+private:
+    void onCreated() {
+        std::cout << "Creating World...\n";
+        // mettre l'initialisation des sparse set typés
+    }
+
+    void onDestroyed() {
+        std::cout << "Destroying World...\n";
+    }
+
+private:
+    void query() {
+        std::cout << "query() not implemented yet\n";
+    }
+
+    void emplace() {
+        std::cout << "emplace() not implemented yet\n";
+    }
+
+    void get() {
+        std::cout << "get() not implemented yet\n";
+    }
+
+    void remove() {
+        std::cout << "remove() not implemented yet\n";
+    }
+};
+
+struct WorldProxy {
+protected:
+    void query() {
+        World::instance().query();
+    }
+
+    void emplace() {
+        World::instance().emplace();
+    }
+
+    void get() {
+        World::instance().get();
+    }
+
+    void remove() {
+        World::instance().remove();
+    }
+
+private:
+
+};
+
+struct MockSystem : private WorldProxy, 
+    public EventHookable<MockSystem>, public Updatable<MockSystem> {
+    friend EventHookable<MockSystem>; friend Updatable<MockSystem>;
+
+private:
+    void onCreated() {
+        std::cout << "Creating MockSystem\n";
+    }
+
+    void onUpdate() {
+        this->query();
+    }
+
+};
+```
+
 # Latest hook system re-built from the ground up since my first and catastrophic try
 
 ##### *I'm seriously very proud of this result; I really worked hard to create a very simple and intuitive API! The beauty of it is that when you instantiate a new System, the only method available to execute for the object is .update(), only that one, nothing else. I think that's excellent, I'm very happy :)*
