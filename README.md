@@ -235,7 +235,7 @@ namespace engine {
     template<typename Layers>
     struct Pipeline : private Layers {
         template<typename, typename...>
-        friend struct PipelineExecutor;
+        friend struct PipelineConductor;
         using type = Layers;
 
     public:
@@ -249,15 +249,15 @@ namespace engine {
     };
 
     template<typename First, typename... Rest>
-    struct PipelineExecutor {
+    struct PipelineConductor {
     public:
-        PipelineExecutor() : pipelines_() {}
+        PipelineConductor() : pipelines_() {}
 
     public:
-        void update_all() noexcept {
+        void update() noexcept {
             std::apply([](auto&&... args) {
                 ((args.update()), ...);
-                }, pipelines_);
+            }, pipelines_);
         }
 
     private:
@@ -297,61 +297,128 @@ namespace engine {
         Singleton& operator=(Singleton&&) = delete;
     };
 
-    struct World : Singleton<World>, EventHookable<World> {
+    template<typename... Ts>
+    class Registry : Singleton<Registry<Ts...>>, EventHookable<Registry<Ts...>> {
     public:
+        friend EventHookable<Registry<Ts...>>;
         friend struct WorldProxy;
-        explicit World(typename Singleton::Token t)
-            : Singleton<World>(t) {}
-        friend EventHookable<World>;
+
+        template<
+            typename = std::enable_if_t<
+            (std::is_base_of_v<Component<Ts>, Ts> && ...),
+        void>>
+        explicit Registry(typename Singleton<Registry<Ts...>>::Token t)
+            : Singleton<Registry<Ts...>>(t) {}
+
+        //si tu cherche quoi faire, il manque le factory-like
+        //constructor sur les emplace() et add()
 
     private:
         void onCreated() {
-            std::cout << "Creating World...\n";
-            // mettre l'initialisation des sparse set typés
+            std::cout << "[Registry Constructor] Created!" << std::endl;
+            storage_ = std::make_tuple(Sparse<Ts>{}...);
         }
 
         void onDestroyed() {
-            std::cout << "Destroying World...\n";
+            std::cout << "[Registry Destructor] Destroying!" << std::endl;
         }
 
     private:
-        void query() {
-            std::cout << "query() not implemented yet\n";
+        template<typename T>
+        auto emplace(std::size_t entity_id) noexcept ->
+            std::enable_if_t<std::is_base_of_v<Component<T>, T>, void> {
+            std::cout << "[Registry emplace] Entering the emplace() fonction!" << std::endl;
+
+            std::cout << std::boolalpha << contains_type<T>() << std::endl;
+
+            std::get<Sparse<T>>(storage_).emplace_default(entity_id);
+        } // @TODO : FAIRE UN TEMPLATE META FACTORY GENRE .emplace(0, x, y);
+
+        template<typename T, typename... Ids>
+        auto emplace_all(Ids&&... entity_ids) noexcept ->
+            std::enable_if_t<std::is_base_of_v<Component<T>, T>
+            && ((std::is_integral_v<Ids>&& std::is_unsigned_v<Ids>) && ...)
+            && (sizeof...(Ids) > 0), void>{
+                std::get<Sparse<T>>(storage_) //faire fonction get interne
+                    .batch_emplace(std::forward<Ids>(entity_ids)...);
         }
 
-        void emplace() {
-            std::cout << "emplace() not implemented yet\n";
+
+        template<typename T>
+        [[nodiscard]] auto get(std::size_t entity_id) noexcept ->
+            std::enable_if_t<std::is_base_of_v<Component<T>, T>
+            && std::disjunction_v<std::is_same<T, Ts>...>, T&> {
+                std::cout << "[Registry get] Entering the get() fonction!" << std::endl;
+
+                Sparse<T>& sparse = std::get<Sparse<T>>(storage_);
+                return *sparse.get(entity_id); //garbage si rien, attention
         }
 
-        void get() {
-            std::cout << "get() not implemented yet\n";
+        template<typename T, typename... Ids>
+        [[nodiscard]] auto get_all(Ids&&... entity_ids) noexcept ->
+            std::enable_if_t<std::is_base_of_v<Component<T>, T>
+            && ((std::is_integral_v<Ids>&& std::is_unsigned_v<Ids>) && ...)
+            && std::disjunction_v<std::is_same<T, Ts>...>
+            && (sizeof...(Ids) > 0), std::tuple<T&>> {
+                return std::tie(get<T>(entity_ids)...);
         }
 
-        void remove() {
-            std::cout << "remove() not implemented yet\n";
+        template<typename T>
+        auto remove(std::size_t entity_id) noexcept ->
+            std::enable_if_t<std::is_base_of_v<Component<T>, T>
+            && std::disjunction_v<std::is_same<T, Ts>...>, void> {
+            std::get<Sparse<T>>(storage_).remove_swap(entity_id);
         }
+
+        template<typename T, typename... Ids>
+        auto remove_all(Ids&&... entity_ids) noexcept ->
+            std::enable_if_t<std::is_base_of_v<Component<T>, T>
+            && std::disjunction_v<std::is_same<T, Ts>...>
+            && ((std::is_integral_v<Ids>&& std::is_unsigned_v<Ids>) && ...)
+            && (sizeof...(Ids) > 0), void> {
+                std::get<Sparse<T>>(storage_)
+                    .batch_remove_swap(std::forward<Ids>(entity_ids)...);
+        }
+
+    private:
+        /* @note possiblement faire un système de archetypes de view, genre si
+                 une view existe deja, on prends celle stocké et on l'utilise*/
+
+    private:
+        template<typename T>
+        constexpr auto contains_type() const noexcept ->
+            std::enable_if_t<std::is_base_of_v<Component<T>, T>, bool> {
+            return std::disjunction_v<std::is_same<T, Ts>...>;
+            /* Pas tellement utile étant donné que j'ai deja SFINAE */
+        }
+
+    private:
+        std::tuple<Sparse<Ts>...> storage_;
     };
+    using World = Registry<Position, Velocity>;
+
 
     struct WorldProxy {
     protected:
         void query() {
-            World::instance().query();
+            //World::instance().query();
+            std::cout << "Query not implemented yet\n";
         }
 
-        void emplace() {
-            World::instance().emplace();
+        template<typename T>
+        void emplace(std::size_t entity_id) const noexcept {
+            World::instance().emplace<T>(entity_id);
         }
 
-        void get() {
-            World::instance().get();
+        template<typename T>
+        [[nodiscard]] T& get(std::size_t entity_id) noexcept {
+            return World::instance().get<T>(entity_id);
         }
 
-        void remove() {
-            World::instance().remove();
+        template<typename T>
+        void remove(std::size_t entity_id) const noexcept {
+            World::instance().remove<T>(entity_id);
         }
-
-    private:
-
     };
 
     struct MockSystem : private WorldProxy, 
@@ -365,8 +432,13 @@ namespace engine {
 
         void onUpdate() {
             this->query();
-        }
+            std::size_t entity = 0;
+            this->emplace<Position>(entity);
 
+            auto a = this->get<Position>(entity);
+
+            a.test();
+        }
     };
 }
 ```
