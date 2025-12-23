@@ -99,6 +99,7 @@ int main() {
 }
 ```
 
+##### *The remaining classes and ECS elements are in a separate file, which corresponds to my ECS project named Exotic.*
 ```cpp
 // Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
 // Licensed under the terms described in the LICENSE file
