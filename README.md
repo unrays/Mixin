@@ -111,18 +111,12 @@ namespace engine {
             if constexpr (requires(Hooked h) { h.onCreated(); })
                 static_cast<Hooked*>(this)->onCreated();
             else onCreatedDefault();
-
-            //std::cout << "System @" << this << '\n';
-
         }
 
         ~EventHookable() {
             if constexpr (requires(Hooked h) { h.onDestroyed(); })
                 static_cast<Hooked*>(this)->onDestroyed();
             else onDestroyedDefault();
-
-            //std::cout << "System @" << this << '\n';
-
         }
 
     protected:
@@ -147,12 +141,12 @@ namespace engine {
         }
 
     protected:
-        void onCreatedDefault() { std::cout << "No 'onCreated' using default.\n"; }
-        void onDestroyedDefault() { std::cout << "No 'onDestroyed' using default.\n"; }
+        void onCreatedDefault() { /*std::cout << "No 'onCreated' using default.\n";*/ }
+        void onDestroyedDefault() { /*std::cout << "No 'onDestroyed' using default.\n"; */ }
 
-        void onUpdateDefault() { std::cout << "No 'onUpdate' using default.\n"; }
-        void onPreUpdateDefault() { std::cout << "No 'onPreUpdate' using default.\n"; }
-        void onPostUpdateDefault() { std::cout << "No 'onPostUpdate' using default.\n"; }
+        void onUpdateDefault() { /*std::cout << "No 'onUpdate' using default.\n"; */ }
+        void onPreUpdateDefault() { /*std::cout << "No 'onPreUpdate' using default.\n"; */ }
+        void onPostUpdateDefault() { /*std::cout << "No 'onPostUpdate' using default.\n"; */ }
 
         //possiblement réfléchir sur un hook onNext();
     };
@@ -177,7 +171,7 @@ namespace engine {
     public:
         void update()
             requires requires(Next& n) { n.update(); }
-            && std::is_base_of_v<EventHookable<Derived>, Derived>
+        && std::is_base_of_v<EventHookable<Derived>, Derived>
         {
             static_cast<Derived*>(this)->invokeUpdate();
             std::cout << "Calling next\n";
@@ -221,7 +215,7 @@ namespace engine {
         friend UpdateLinkable<Derived, Next>;
 
     template<typename Next>
-    struct LinkedSystem : SYSTEM_HOOKS  (LinkedSystem<Next>, Next) {
+    struct LinkedSystem : SYSTEM_HOOKS(LinkedSystem<Next>, Next) {
     public:               SYSTEM_FRIENDS(LinkedSystem<Next>, Next)
     private:
         void onCreated() {
@@ -263,7 +257,7 @@ namespace engine {
         void update_all() noexcept {
             std::apply([](auto&&... args) {
                 ((args.update()), ...);
-            }, pipelines_);
+                }, pipelines_);
         }
 
     private:
@@ -293,82 +287,85 @@ namespace engine {
     protected:
         struct Token {};
 
-        Singleton(Token) = default;
+        explicit Singleton(Token) {}
 
     private:
+        Singleton() = delete;
         Singleton(const Singleton&) = delete;
         Singleton& operator=(const Singleton&) = delete;
         Singleton(Singleton&&) = delete;
         Singleton& operator=(Singleton&&) = delete;
     };
 
-    struct World : Singleton<World> {
-        template<typename T>
+    struct World : Singleton<World>, EventHookable<World> {
+    public:
         friend struct WorldProxy;
+        explicit World(typename Singleton::Token t)
+            : Singleton<World>(t) {}
+        friend EventHookable<World>;
 
-    public:
-        struct Configuration {
-            using QueryReturnType = int;
-        };
+    private:
+        void onCreated() {
+            std::cout << "Creating World...\n";
+            // mettre l'initialisation des sparse set typés
+        }
 
-    public:
-        void invoke() const {
-            std::cout << "Ivoking World\n";
+        void onDestroyed() {
+            std::cout << "Destroying World...\n";
         }
 
     private:
         void query() {
-            std::cout << "World -> query...\n";
+            std::cout << "query() not implemented yet\n";
         }
 
         void emplace() {
-            std::cout << "World -> emplace...\n";
+            std::cout << "emplace() not implemented yet\n";
         }
 
-        void update() {
-            std::cout << "pas certain que c'est une fonc de world...\n";
+        void get() {
+            std::cout << "get() not implemented yet\n";
         }
 
-    private:
-        // ECS <- CRTP <- SYSTEM CALL
-        // crtp qui garde la reference vers le ecs
-        // system qui call son crtp dans update
-        // j'imagine qu'il pourrait genre le query
-        // genre crtp::query([](){ lambda }) qui return ecs.query(->&lambda) view
+        void remove() {
+            std::cout << "remove() not implemented yet\n";
+        }
     };
 
-    template<typename Derived>
     struct WorldProxy {
-    public:
-        void test() {
-            std::cout << "test\n";
+    protected:
+        void query() {
+            World::instance().query();
         }
 
-        World& forward() {
-            return World::instance();
+        void emplace() {
+            World::instance().emplace();
         }
 
-        void query_world() { //faire un using type dans ecs pour determiner le tuype de retour
-            World::getInstance().query();
+        void get() {
+            World::instance().get();
         }
 
-
+        void remove() {
+            World::instance().remove();
+        }
 
     private:
-
 
     };
 
-    struct MockSystem : private WorldProxy<MockSystem> {
-    public:
-        void update() {
-            //this->forward().invoke();
-
-            this->query_world();
-        }
+    struct MockSystem : private WorldProxy, 
+        public EventHookable<MockSystem>, public Updatable<MockSystem> {
+        friend EventHookable<MockSystem>; friend Updatable<MockSystem>;
 
     private:
+        void onCreated() {
+            std::cout << "Creating MockSystem\n";
+        }
 
+        void onUpdate() {
+            this->query();
+        }
 
     };
 }
