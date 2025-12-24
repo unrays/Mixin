@@ -487,9 +487,9 @@ namespace engine {
     public:
         #if __cplusplus >= 202002L
             template<typename T>
-                requires std::is_base_of_v<Component<T>, T>
-            && std::disjunction_v<std::is_same<T, Ts>...>
-                [[nodiscard]]
+            requires std::is_base_of_v<Component<T>, T>
+                  && std::disjunction_v<std::is_same<T, Ts>...>
+            [[nodiscard]]
             auto get(const std::size_t entity_id) noexcept(false) -> T&
             {
                 Sparse<T>& sparse = std::get<Sparse<T>>(storage_);
@@ -497,9 +497,9 @@ namespace engine {
             }
 
             template<typename T>
-                requires std::is_base_of_v<Component<T>, T>
-            && std::disjunction_v<std::is_same<T, Ts>...>
-                [[nodiscard]]
+            requires std::is_base_of_v<Component<T>, T>
+                  && std::disjunction_v<std::is_same<T, Ts>...>
+            [[nodiscard]]
             auto get(const std::size_t entity_id) const noexcept(false) -> const T&
             {
                 const Sparse<T>& sparse = std::get<Sparse<T>>(storage_);
@@ -549,8 +549,8 @@ namespace engine {
     public:
         #if __cplusplus >= 202002L
             template<typename T>
-                requires std::is_base_of_v<Component<T>, T>
-                      && std::disjunction_v<std::is_same<T, Ts>...>
+            requires std::is_base_of_v<Component<T>, T>
+                  && std::disjunction_v<std::is_same<T, Ts>...>
             auto remove(const std::size_t entity_id) noexcept(false)
             {
                 std::get<Sparse<T>>(storage_).remove_swap(entity_id);
