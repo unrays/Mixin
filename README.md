@@ -441,6 +441,103 @@ namespace engine {
             a.test();
         }
     };
+
+    template<typename... Ts>
+    struct ECSRefactored {
+        #define MIXIN_NODISCARD [[nodiscard]]
+        #if __cplusplus < 202002L
+            #undef MIXIN_NODISCARD
+            #define MIXIN_NODISCARD
+        #endif
+
+        #if __cplusplus >= 202002L
+            #define MIXIN_COMPAT_ENABLE_IF(code_cxx20, code_older) code_cxx20
+        #else
+            #define MIXIN_COMPAT_ENABLE_IF(code_cxx20, code_older) code_older
+        #endif
+
+    public:
+        #if __cplusplus >= 202002L
+            template<typename T, typename... Args>
+            requires std::is_base_of_v<Component<T>, T>
+                  && std::is_constructible_v<T, Args...>
+            auto emplace(const std::size_t entity_id, Args&&... args) noexcept(false)
+            {
+
+            }
+        #else
+            template<typename T, typename... Args>
+            auto emplace(const std::size_t entity_id, Args&&... args) noexcept(false)
+                -> std::enable_if_t<std::is_base_of_v<Component<T>, T>
+                && std::is_constructible_v<T, Args...>, void>
+            {
+                //std::get<Sparse<T>>(storage_).emplace_default(entity_id);
+                //aussi adapter dans le sparse set
+            }
+        #endif
+
+    public:
+        #if __cplusplus >= 202002L
+            template<typename T>
+            requires std::is_base_of_v<Component<T>, T>
+                  && std::disjunction_v<std::is_same<T, Ts>...>
+            MIXIN_NODISCARD
+            auto get(const std::size_t entity_id) noexcept(false) -> T&
+            {
+                Sparse<T>& sparse = std::get<Sparse<T>>(storage_);
+                return *sparse.get(entity_id); //garbage si rien, attention
+            }
+
+            template<typename T>
+            requires std::is_base_of_v<Component<T>, T>
+                  && std::disjunction_v<std::is_same<T, Ts>...>
+            MIXIN_NODISCARD
+            auto get(const std::size_t entity_id) const noexcept(false) -> const T&
+            {
+                const Sparse<T>& sparse = std::get<Sparse<T>>(storage_);
+                return *sparse.get(entity_id); //garbage si rien, attention
+            }
+        #else
+            template<typename T>
+            MIXIN_NODISCARD
+            auto get(const std::size_t entity_id) noexcept(false)
+                -> std::enable_if_t<std::is_base_of_v<Component<T>, T>
+                && std::disjunction_v<std::is_same<T, Ts>...>, T&>
+            {
+                Sparse<T>& sparse = std::get<Sparse<T>>(storage_);
+                return *sparse.get(entity_id); //garbage si rien, attention
+            }
+
+            template<typename T>
+            MIXIN_NODISCARD
+            auto get(const std::size_t entity_id) const noexcept(false)
+                -> std::enable_if_t<std::is_base_of_v<Component<T>, T>
+                && std::disjunction_v<std::is_same<T, Ts>...>, const T&>
+            {
+                const Sparse<T>& sparse = std::get<Sparse<T>>(storage_);
+                return *sparse.get(entity_id); //garbage si rien, attention
+            }
+        #endif
+
+    public:
+        #if __cplusplus >= 202002L
+            template<typename T>
+            requires std::is_base_of_v<Component<T>, T>
+                  && std::disjunction_v<std::is_same<T, Ts>...>
+            auto remove(const std::size_t entity_id) noexcept(false)
+            {
+                std::get<Sparse<T>>(storage_).remove_swap(entity_id);
+            }
+        #else
+            template<typename T>
+            auto remove(const std::size_t entity_id) noexcept(false)
+                -> std::enable_if_t<std::is_base_of_v<Component<T>, T>
+                && std::disjunction_v<std::is_same<T, Ts>...>, void>
+            {
+                std::get<Sparse<T>>(storage_).remove_swap(entity_id);
+            }
+        #endif
+    };
 }
 ```
 
