@@ -463,7 +463,7 @@ namespace engine {
                   && std::is_constructible_v<T, Args...>
             auto emplace(const std::size_t entity_id, Args&&... args) noexcept(false)
             {
-
+                 /* ... */
             }
         #elif __cplusplus >= 201703L
             template<typename T, typename... Args>
@@ -509,8 +509,8 @@ namespace engine {
            template<typename T>
            [[nodiscard]]
            auto get(const std::size_t entity_id) noexcept(false)
-                -> std::enable_if<std::is_base_of<Component<T>, T>::value
-                && std::disjunction<std::is_same<T, Ts>...>::value, T&>::type
+                -> std::enable_if_t<std::is_base_of_v<Component<T>, T>
+                && std::disjunction_v<std::is_same<T, Ts>...>, T&>
            {
                 Sparse<T>& sparse = std::get<Sparse<T>>(storage_);
                 return *sparse.get(entity_id); //garbage si rien, attention
@@ -519,8 +519,8 @@ namespace engine {
            template<typename T>
            [[nodiscard]]
            auto get(const std::size_t entity_id) const noexcept(false)
-                -> std::enable_if<std::is_base_of<Component<T>, T>::value
-                && std::disjunction<std::is_same<T, Ts>...>::value, const T&>::type
+                -> std::enable_if_t<std::is_base_of_v<Component<T>, T>
+                && std::disjunction_v<std::is_same<T, Ts>...>, const T&>
            {
                 const Sparse<T>& sparse = std::get<Sparse<T>>(storage_);
                 return *sparse.get(entity_id); //garbage si rien, attention
