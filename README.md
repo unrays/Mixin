@@ -576,6 +576,117 @@ namespace engine {
 }
 ```
 
+# Prototype of a multi-index emplace() system (C++23)
+
+##### *It also supports previous C++ standards, but they do not currently benefit from multi-indexing emplace()!*
+```cpp
+// Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
+// Licensed under the terms described in the LICENSE file
+
+template<typename... Ts>
+struct Arguments;
+
+template<typename T>
+struct Arguments<T> {
+public:
+    explicit Arguments(T element) : element_(element) {}
+
+public:
+    template<typename... Args>
+    void operator()(Args&&... args) {
+        std::cout << "Element: " << element_ << "\n";
+        (..., (std::cout << "Arg: " << args << "\n"));
+    }
+
+private:
+    T element_;
+
+};
+
+template<typename T, typename U, typename... Rest>
+struct Arguments<T, U, Rest...> {
+public:
+    explicit Arguments(T t, U u, Rest&&... rest)
+        : elements_(t, u, std::forward<Rest>(rest)...) {}
+
+public:
+    template<typename... Args>
+    std::enable_if_t<(sizeof...(Rest) + 2) == sizeof...(Args)>
+    operator()(Args&&... args) {
+        std::cout << (sizeof...(Rest) + 2) << "\n";
+        std::cout << (sizeof...(Args)) << "\n";
+        
+        if constexpr ((sizeof...(Rest) + 2) != sizeof...(Args)) {
+            std::cerr << "Warning: each entity must have a corresponding component\n";
+        }
+
+        std::cout << "Elements are: ";
+        std::apply([&](auto&&... elements) {
+            (..., (std::cout << elements << " "));
+            }, elements_);
+        std::cout << "\n";
+
+        (..., (std::cout << "Arguments are: " << std::boolalpha << args << "\n"));
+    }
+
+public:
+    void Extension(int idx) {
+        std::cout << "Arguments are: " << idx << "\n";
+    }
+
+private:
+    std::tuple<T, U, Rest...> elements_;
+
+};
+
+
+
+struct Container {
+#if __cplusplus >= 202302L
+    template<typename... Args>
+    Arguments<Args...> operator[](Args&&... args) {
+        return Arguments<Args...>(std::forward<Args>(args)...);
+    }
+#else
+    template<typename T>
+    Arguments<T> operator[](T arg) {
+        return Arguments<T>(arg);
+    }
+#endif
+};
+
+
+struct Objectt {
+public:
+    //template<typename T = void>
+    //using emplace = Container<T>;
+
+public:
+    Container emplace;
+
+private:
+
+
+};
+
+int main() {
+    Objectt ecs;
+
+    #if __cplusplus >= 202302L
+        ecs.emplace[entity0, entity1, entity2](0, 1, 2);
+    
+        ecs.emplace[entity0](0);
+    
+        //en gros, en c++23, tu peux faire le batch
+        //avec la syntaxe du single emplace
+    #else
+        ecs.emplace[entity0](0, 1, 2, 3, 4, 5);
+        //limiter a un seul param
+        //et après, faire le truc de build le component
+    #endif
+}
+```
+
 # Latest progress on the ECS architecture
 
 ##### *It's really really cool, custom CRTP Meyers Singleton + Proxy for secure communication with systems*
