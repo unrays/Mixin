@@ -755,8 +755,9 @@ private:
 
 
 
-# Prototype of a multi-index emplace() system (C++23)
+# [old] Prototype of a multi-index emplace() system (C++23)
 
+#### This was the first implementation of the concept, which I later developed further in my Linkly library.
 ##### *It also supports previous C++ standards, but they do not currently benefit from multi-indexing emplace()!*
 ```cpp
 // Copyright (c) December 2025 Félix-Olivier Dumas. All rights reserved.
