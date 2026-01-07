@@ -576,6 +576,185 @@ namespace engine {
 }
 ```
 
+## Implementation of fluent design in ECS using my custom library named Linkly, which I have been working on for the last week.
+```cpp
+// Copyright (c) January 2026 Félix-Olivier Dumas. All rights reserved.
+// Licensed under the terms described in the LICENSE file
+
+using namespace linkly;
+
+using namespace v10;
+
+/**********************************************************/
+/*                 ECS END OPERATOR IMPL                  */
+/**********************************************************/
+
+struct InsertEndOperator:
+   EndOperatorBase<InsertEndOperator>,
+   private WorldProxy
+{
+   using EndOperatorBase<InsertEndOperator>::EndOperatorBase;
+
+   template<typename State>
+   void onOperated(State&& s) {
+       auto entity_t = std::get<0>(s);
+       auto component_t = std::get<1>(s);
+
+       std::apply([&](auto&&... args) {
+           std::size_t i = 0;
+
+           std::cout << "Entities: \n";
+           ((std::cout << "   [" << i++ << "]" << " -> entity " << args << "\n"), ...);
+
+           // juste pour le test
+           ((this->emplace<Position>(args)), ...);
+       }, entity_t);
+
+       std::cout << "\n";
+
+       std::apply([&](auto&&... args) {
+           std::size_t i = 0;
+
+           std::cout << "Components: \n";
+           ((std::cout << "   [" << i++ << "]" << " -> component " << args << "\n"), ...);
+       }, component_t);
+
+       /*std::cout << "*********** RESULT ***********\n";
+       std::apply([&](auto&&... op_tuples) {
+           ((std::apply([&](auto&&... args) {
+               std::size_t i = 0;
+
+               ((std::cout << "Index " << i++ << ": " << args << "\n"), ...);
+               std::cout << "------\n";
+               }, op_tuples)), ...);
+           }, s);
+       std::cout << "******************************\n\n";*/
+   }
+};
+
+/**********************************************************/
+/*              ENTITY INDEXER OPERATOR IMPL              */
+/**********************************************************/
+template<
+   std::size_t Arity,
+   typename Next,
+   typename CurrentState
+>
+struct EntityIndexerOperator_:
+   OperatorTraits<EntityIndexerOperator_<Arity, Next, CurrentState>>,
+   SubscriptOperatorBase<EntityIndexerOperator_<Arity, Next, CurrentState>>,
+   StatefulOperator<CurrentState>
+{
+   using StatefulOperator<CurrentState>::StatefulOperator;
+   friend SubscriptOperatorBase<EntityIndexerOperator_<Arity, Next, CurrentState>>;
+
+private:
+   template<typename... Args>
+   auto onOperated(Args&&... args) {
+       auto concat_state_args = std::tuple_cat(
+           this->state_,
+           std::make_tuple(std::make_tuple(std::forward<Args>(args)...))
+       );
+
+       if constexpr (is_end_operator<Next>::value) {
+           if constexpr (has_onOperated_dummy<Next>::value)
+               return Next{ concat_state_args };
+           else
+               return concat_state_args;
+       } //peut-être deleter le end car no way il end a cette etape la
+       else
+           return Next::template template_type<
+               sizeof...(args),
+               typename Next::next_type,
+               decltype(concat_state_args)
+           > (std::move(concat_state_args));
+   }
+};
+
+/**********************************************************/
+/*           COMPONENT INDEXER OPERATOR IMPL              */
+/**********************************************************/
+template<
+   std::size_t Arity,
+   typename Next,
+   typename CurrentState
+>
+struct ComponentIndexerOperator_ :
+   OperatorTraits<ComponentIndexerOperator_<Arity, Next, CurrentState>>,
+   FunctionOperatorBase<ComponentIndexerOperator_<Arity, Next, CurrentState>>,
+   StatefulOperator<CurrentState>
+{
+   using StatefulOperator<CurrentState>::StatefulOperator;
+   friend FunctionOperatorBase<ComponentIndexerOperator_<Arity, Next, CurrentState>>;
+
+private:
+   template<typename... Args>
+   auto onOperated(Args&&... args) {
+       auto concat_state_args = std::tuple_cat(
+           this->state_,
+           std::make_tuple(std::make_tuple(std::forward<Args>(args)...))
+       );
+
+       //GENRE FAIRE RETURN DIRECTEMENT, PAS DE IF/ELSE
+       if constexpr (is_end_operator<Next>::value) {
+           if constexpr (has_onOperated_dummy<Next>::value)
+               return Next{ concat_state_args };
+           else
+               return concat_state_args;
+
+           //RETURN STRUCT QUI ADD T1 & T2 AU REGISTRY
+       }
+       else //prob supp la partie en bas
+           return Next::template template_type<
+               sizeof...(args),
+               typename Next::next_type,
+               decltype(concat_state_args)
+           > (std::move(concat_state_args));
+   }
+};
+
+LINKLY_GENERATE_OPERATOR_ALIAS(EntityIndexerOperator, EntityIndexerOperator_);
+LINKLY_GENERATE_OPERATOR_ALIAS(ComponentIndexerOperator, ComponentIndexerOperator_);
+
+/**********************************************************/
+/*                    ECS FACADE IMPL                     */
+/**********************************************************/
+
+struct ECS_DSL { //les end du dsl communiquent avec le proxy
+public:
+   using InsertPipeline =
+       EntityIndexerOperator<
+           ComponentIndexerOperator<InsertEndOperator>
+       >;
+
+public: //mettre protected pour heritage only
+   InsertPipeline insert;
+
+private:
+   //void query() {
+   //    //World::instance().query();
+   //    std::cout << "Query not implemented yet\n";
+   //}
+
+   //template<typename T>
+   //void emplace(std::size_t entity_id) const noexcept {
+   //    World::instance().emplace<T>(entity_id);
+   //}
+
+   //template<typename T>
+   //[[nodiscard]] T& get(std::size_t entity_id) noexcept {
+   //    return World::instance().get<T>(entity_id);
+   //}
+
+   //template<typename T>
+   //void remove(std::size_t entity_id) const noexcept {
+   //    World::instance().remove<T>(entity_id);
+   //}
+};
+```
+
+
+
 # Prototype of a multi-index emplace() system (C++23)
 
 ##### *It also supports previous C++ standards, but they do not currently benefit from multi-indexing emplace()!*
