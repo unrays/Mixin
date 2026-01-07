@@ -751,6 +751,14 @@ private:
    //    World::instance().remove<T>(entity_id);
    //}
 };
+
+int main() {
+    auto ecs = ECS_DSL{};
+
+    std::size_t entity1 = std::size_t(1);
+
+    ecs.insert[entity1](10);
+}
 ```
 
 
